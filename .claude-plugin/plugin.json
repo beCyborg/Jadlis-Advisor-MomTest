@@ -1,0 +1,8 @@
+{
+  "name": "jadlis-advisor-momtest",
+  "description": "Customer discovery conversation advisor — The Mom Test (Rob Fitzpatrick)",
+  "version": "1.0.0",
+  "author": { "name": "beCyborg" },
+  "repository": "https://github.com/beCyborg/Jadlis-Advisor-MomTest",
+  "keywords": ["customer-discovery", "interviews", "mom-test", "validation", "customer-development"]
+}
