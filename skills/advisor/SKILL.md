@@ -15,6 +15,7 @@ description: |
   валидация идеи, Mom Test, вопросы для интервью, обратная связь от клиентов,
   customer development, плохие данные, зомби-лиды, ранние евангелисты.
 user-invocable: true
+allowed-tools: mcp__plugin_supabase_supabase__execute_sql, mcp__plugin_supabase_supabase__list_projects
 ---
 
 # Mom Test Advisor
@@ -33,6 +34,70 @@ Provide procedural knowledge for conducting customer conversations that produce 
 - User getting lots of positive feedback but no paying customers
 - User unsure who to talk to or where to find potential customers
 - User requesting help writing outreach emails or framing meetings
+
+
+## Context Loading Protocol
+
+Execute the following steps at the start of every advisory session:
+
+1. Call `mcp__plugin_supabase_supabase__list_projects` to obtain PROJECT_ID.
+2. Execute the following SQL queries using `mcp__plugin_supabase_supabase__execute_sql` with `project_id: PROJECT_ID`:
+
+**User tier:**
+```sql
+SELECT current_tier FROM user_tier WHERE id = 'singleton'
+```
+
+**Need scores (with fallback):**
+```sql
+-- Primary: today's scores
+SELECT n.id, n.name, ns.score, ns.period_start
+FROM needs n
+LEFT JOIN need_scores ns ON n.id = ns.need_id AND ns.period_start = CURRENT_DATE
+ORDER BY n.id
+
+-- If primary returns empty scores, use fallback:
+SELECT n.id, n.name, ns.score, ns.period_start
+FROM needs n
+LEFT JOIN need_scores ns ON n.id = ns.need_id
+  AND ns.period_start = (
+    SELECT MAX(period_start) FROM need_scores WHERE period_type = 'daily'
+  )
+ORDER BY n.id
+```
+Note the date of the scores and inform the user if data is not from today.
+
+**Active and draft goals:**
+```sql
+SELECT id, title, type, status, need_id, hypothesis, definition_of_done
+FROM goals
+WHERE status IN ('active', 'draft')
+ORDER BY created_at DESC
+LIMIT 20
+```
+
+**SWOT entries (open):**
+```sql
+SELECT id, type, title, content, impact, need_ids
+FROM swot_entries
+WHERE status NOT IN ('ignored', 'accepted', 'goal_created')
+ORDER BY created_at DESC
+LIMIT 20
+```
+
+**Active habits:**
+```sql
+SELECT id, name, identity, tier, is_active, need_id, metric_id
+FROM habits
+WHERE is_active = true
+ORDER BY created_at DESC
+```
+
+3. Read `.claude/momtest.local.md` using the Read tool (per-project context file).
+4. Analyze all loaded context before proceeding.
+5. Ask the user for methodology-specific context that cannot be loaded automatically.
+
+**Fallback:** If Supabase MCP is unavailable (tool call fails), continue as pure knowledge advisor. Inform: "Supabase MCP is unavailable. Working in pure knowledge mode — context not loaded automatically. Describe your current situation."
 
 ## Context Gathering
 
@@ -243,6 +308,61 @@ On EVERY recommendation:
 | Mixed signals, broad segment | [customer-slicing.md](references/customer-slicing.md) | — |
 | Preparing for conversations | [running-process.md](references/running-process.md) | [bad-data.md](references/bad-data.md) |
 | Post-conversation review | [running-process.md](references/running-process.md) | [commitment-advancement.md](references/commitment-advancement.md) |
+
+
+## Proposal Protocol
+
+For each recommendation generated during the advisory session:
+
+1. Formulate the recommendation based on methodology analysis.
+2. Present the recommendation to the user with full reasoning.
+3. Record the proposal in `advisor_proposals` via `execute_sql`:
+
+```sql
+INSERT INTO advisor_proposals (
+  advisor_name,
+  proposal_type,
+  title,
+  reasoning,
+  payload,
+  session_id,
+  session_context
+) VALUES (
+  'momtest',
+  '[goal|habit|swot_entry|adjustment]',
+  '[TITLE]',
+  '[REASONING]',
+  '[PAYLOAD_JSONB]'::jsonb,
+  '[SESSION_UUID]',
+  '[SESSION_CONTEXT_JSONB]'::jsonb
+)
+```
+
+**session_id:** Generate one UUID at the start of each advisory session. All proposals from the same session share the same `session_id`.
+
+**session_context structure:**
+```json
+{
+  "date": "YYYY-MM-DD",
+  "tier": "emergency|core|standard|full",
+  "need_score": 72.4,
+  "advisor_version": "1.1.0"
+}
+```
+
+**payload structures by proposal_type:**
+
+- `goal`: `{ "title", "type": "foundation|drive|joy", "need_id", "hypothesis", "definition_of_done" }`
+- `habit`: `{ "name", "identity", "trigger", "mvv", "full_version", "frequency_days", "tier", "hypothesis", "need_id", "metric_id" (optional) }`
+- `swot_entry`: `{ "type": "strength|weakness|opportunity|threat", "title", "content", "need_ids": [], "impact": "high|medium|low", "source": "advisor_momtest" }`
+- `adjustment`: `{ "target_table": "goals|habits|swot_entries", "target_id": "UUID", "changes": { "field": "new_value" } }`
+
+**Adjustment allowed fields:**
+- `goals`: `status`, `title`, `hypothesis`, `definition_of_done`, `type`, `need_id`
+- `habits`: `is_active`, `name`, `tier`, `hypothesis`, `trigger`, `mvv`, `full_version`
+- `swot_entries`: `status`, `impact`, `content`, `title`
+
+4. Inform the user that the proposal has been saved and will be available in NeedsCore Dashboard.
 
 ## Context Persistence
 
