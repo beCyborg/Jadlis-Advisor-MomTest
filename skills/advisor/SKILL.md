@@ -78,7 +78,7 @@ LIMIT 20
 
 **SWOT entries (open):**
 ```sql
-SELECT id, type, title, content, impact, need_ids
+SELECT id, type, title, content, impact, status, need_ids
 FROM swot_entries
 WHERE status NOT IN ('ignored', 'accepted', 'goal_created')
 ORDER BY created_at DESC
@@ -87,7 +87,7 @@ LIMIT 20
 
 **Active habits:**
 ```sql
-SELECT id, name, identity, tier, is_active, need_id, metric_id
+SELECT id, name, identity, trigger, mvv, tier, is_active, need_id
 FROM habits
 WHERE is_active = true
 ORDER BY created_at DESC
@@ -336,6 +336,7 @@ INSERT INTO advisor_proposals (
   '[SESSION_UUID]',
   '[SESSION_CONTEXT_JSONB]'::jsonb
 )
+RETURNING id
 ```
 
 **session_id:** Generate one UUID at the start of each advisory session. All proposals from the same session share the same `session_id`.
