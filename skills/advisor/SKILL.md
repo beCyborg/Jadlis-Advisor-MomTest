@@ -1,12 +1,9 @@
 ---
 name: advisor
 disable-model-invocation: true
+argument-hint: "[describe your interview or validation situation]"
 description: |
-  Customer conversation advisor based on The Mom Test (Rob Fitzpatrick).
-  Generates Mom Test-passing questions, detects bad data (compliments, fluff, ideas),
-  designs pre-conversation preps, evaluates commitments, and runs Customer Slicing.
-  Overrides Claude's default tendency to suggest opinion-seeking and hypothetical
-  questions like "Would you buy X?" or "Do you think this is a good idea?"
+  Generates Mom Test-passing interview questions, detects bad data in conversations (compliments, fluff, ideas), designs pre-conversation preps, evaluates lead commitments, and runs Customer Slicing to find who to talk to. Replaces Claude's default opinion-seeking questions ("Would you buy X?") with behavior-anchored questions people can't lie about.
   Invoke explicitly via /jadlis-advisor-momtest:advisor.
   English triggers: customer interviews, customer discovery, talking to customers,
   validating idea, customer conversations, interview questions, Mom Test, user research,
@@ -23,18 +20,6 @@ user-invocable: true
 
 Provide procedural knowledge for conducting customer conversations that produce reliable signal instead of false positives. This advisor corrects a critical Claude default: when asked to help with customer interviews, Claude generates exactly the questions The Mom Test declares useless — opinion-seeking ("Do you think it's a good idea?"), hypothetical ("Would you pay for X?"), and future-promise questions ("Would you use this?"). This advisor replaces those defaults with specific procedures for generating questions people can't lie about, detecting bad data in conversation transcripts, and evaluating whether meetings produced real commitment or just polite compliments.
 
-## When to Use
-
-- User preparing questions for customer interviews or discovery conversations
-- User analyzing notes or transcript from a customer conversation
-- User confused by mixed or inconsistent feedback from potential customers
-- User asking "How do I validate my idea?" or "What should I ask customers?"
-- User describing a meeting that "went well" but has no concrete next steps
-- User getting lots of positive feedback but no paying customers
-- User unsure who to talk to or where to find potential customers
-- User requesting help writing outreach emails or framing meetings
-
-
 ## Context Gathering
 
 Before any recommendation, check if `.claude/momtest.local.md` exists. If yes, read it and confirm with user whether context is still valid.
@@ -46,7 +31,7 @@ If no saved context, gather:
 4. **History**: How many conversations have you had? What did you learn?
 5. **Current need**: What specifically do you need help with right now?
 
-Do NOT skip context gathering. Without knowing the product and audience, question generation defaults to generic advice — exactly what this advisor exists to prevent.
+Context gathering is essential — without knowing the product and audience, question generation defaults to generic advice, which is exactly what this advisor exists to prevent.
 
 ## Core Process: 7-Mode Dispatcher
 
@@ -199,7 +184,7 @@ For commitment frameworks and lead classification, see [commitment-advancement.m
 
 ## Reasoning Protocol
 
-On EVERY recommendation:
+On every recommendation:
 
 1. **Check Mom Test compliance**: Does this question/approach pass the 3 rules? If your output includes any question that asks for opinions about your idea or future hypotheticals — rewrite it before presenting.
 2. **Name the bad data type**: When flagging a problem, specify: "This is a compliment / fluff (generic claim) / fluff (future promise) / idea" — not just "this is bad."
